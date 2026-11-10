@@ -216,3 +216,47 @@ def test_erro_do_git_reverte_e_libera_lock(repo, monkeypatch):
     assert not (repo.dados_dir / "rotinas/rotina_a.yaml").exists()
     with open(repo.dados_dir / ".lock", "a") as f:
         fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
+
+
+def _git_quebrado(repo, monkeypatch):
+    def falha(*a, **k):
+        raise ErroRepositorio("git falhou")
+    monkeypatch.setattr(repo, "_versionar", falha)
+
+
+def test_excluir_com_falha_no_git_restaura_script(repo_com_a, monkeypatch):
+    p = repo_com_a.dados_dir / "scripts/rotinas/rotina_a/a.sh"
+    antes = p.read_bytes()
+    _git_quebrado(repo_com_a, monkeypatch)
+    with pytest.raises(ErroRepositorio):
+        repo_com_a.excluir("rotina_a", "maria")
+    assert p.read_bytes() == antes
+    assert repo_com_a.obter("rotina_a") is not None
+
+
+def test_atualizar_trocando_script_com_falha_no_git_restaura(repo_com_a, monkeypatch):
+    repo_com_a.criar({"nome": "rotina_c", "agendamento": "@daily"}, ArquivoEnviado("c.sh", b"#!/bin/sh\n"), "joao")
+    p = repo_com_a.dados_dir / "scripts/rotinas/rotina_c/c.sh"
+    antes = p.read_bytes()
+    _git_quebrado(repo_com_a, monkeypatch)
+    with pytest.raises(ErroRepositorio):
+        repo_com_a.atualizar("rotina_c", {"nome": "rotina_c", "agendamento": "@daily", "script": "rotinas/rotina_a/a.sh"}, None, "maria")
+    assert p.read_bytes() == antes
+    assert repo_com_a.obter("rotina_c").script == "rotinas/rotina_c/c.sh"
+
+
+def test_upload_nao_sobrescreve_script_de_outra_rotina_caso_a(repo_com_a):
+    repo_com_a.criar({"nome": "rotina_b", "agendamento": "@daily", "script": "rotinas/rotina_a/a.sh"}, None, "maria")
+    with pytest.raises(RotinaInvalida) as e:
+        repo_com_a.atualizar("rotina_a", dict(A), ArquivoEnviado("a.sh", b"#!/bin/sh\nnovo\n"), "joao")
+    assert e.value.erros["script"] == "O arquivo rotinas/rotina_a/a.sh é usado também pela rotina rotina_b; envie com outro nome"
+    assert b"echo oi" in (repo_com_a.dados_dir / "scripts/rotinas/rotina_a/a.sh").read_bytes()
+
+
+def test_upload_nao_sobrescreve_script_de_outra_rotina_caso_b(repo_com_a):
+    repo_com_a.criar({"nome": "rotina_b", "agendamento": "@daily", "script": "rotinas/rotina_a/a.sh"}, None, "maria")
+    repo_com_a.excluir("rotina_a", "joao")
+    with pytest.raises(RotinaInvalida) as e:
+        repo_com_a.criar(dict(A), ArquivoEnviado("a.sh", b"#!/bin/sh\nnovo\n"), "joao")
+    assert "rotina_b" in e.value.erros["script"]
+    assert b"echo oi" in (repo_com_a.dados_dir / "scripts/rotinas/rotina_a/a.sh").read_bytes()

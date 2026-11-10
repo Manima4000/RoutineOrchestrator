@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import fcntl
 import json
+import logging
 import os
 import re
 import subprocess
@@ -103,10 +104,11 @@ class _Transacao:
                 if conteudo is None:
                     caminho.unlink(missing_ok=True)
                 else:
+                    caminho.parent.mkdir(parents=True, exist_ok=True)
                     caminho.write_bytes(conteudo)
                     os.chmod(caminho, self._modos[caminho])
             except OSError:
-                pass
+                logging.getLogger(__name__).exception("Falha ao restaurar %s", caminho)
         for d in reversed(self._dirs):
             try:
                 d.rmdir()
@@ -195,6 +197,10 @@ class RepositorioRotinas:
         arquivo = _sanear_nome(script.nome_arquivo)
         conteudo = _preparar_script(script)
         rel = f"rotinas/{nome}/{arquivo}"
+        outra = next((r.nome for r in self.listar()[0] if r.nome != nome and r.script == rel), None)
+        if outra:
+            raise RotinaInvalida({
+                "script": f"O arquivo {rel} é usado também pela rotina {outra}; envie com outro nome"})
         tx.gravar(self.scripts_dir / rel, conteudo, 0o750)
         dados["script"] = rel
 
