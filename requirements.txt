@@ -1,0 +1,9 @@
+apache-airflow-providers-fab
+pyyaml
+croniter
+paramiko
+netmiko
+jinja2
+python-multipart
+pytest
+httpx

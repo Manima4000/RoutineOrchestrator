@@ -1,0 +1,152 @@
+name: rotinas
+
+x-build: &build
+  context: .
+  args:
+    HTTP_PROXY: ${HTTP_PROXY:-}
+    HTTPS_PROXY: ${HTTPS_PROXY:-}
+
+x-ambiente: &ambiente
+  AIRFLOW__CORE__EXECUTOR: LocalExecutor
+  AIRFLOW__CORE__DEFAULT_TIMEZONE: America/Manaus
+  AIRFLOW__CORE__AUTH_MANAGER: airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager
+  AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+  AIRFLOW__CORE__EXECUTION_API_SERVER_URL: http://airflow-apiserver:8080/execution/
+  AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:${POSTGRES_PASSWORD}@postgres/airflow
+  AIRFLOW__DAG_PROCESSOR__REFRESH_INTERVAL: "30"
+  HOME: /home/airflow
+  USER: airflow
+  ROTINAS_DIR: /opt/airflow/dados/rotinas
+  SCRIPTS_DIR: /opt/airflow/dados/scripts
+  DADOS_DIR: /opt/airflow/dados
+  SSH_KNOWN_HOSTS: /opt/airflow/ssh/known_hosts
+  ROTINAS_LIB: /opt/rotinas/lib
+  BACKUPS_DIR: /opt/airflow/backups
+  PYTHONPATH: /opt/airflow/plugins:/opt/rotinas/lib
+
+x-airflow: &airflow
+  build: *build
+  image: rotinas-airflow:local
+  user: "${AIRFLOW_UID:-50000}:0"
+  env_file: .env
+  environment: *ambiente
+  volumes:
+    - ./dags:/opt/airflow/dags
+    - ./plugins:/opt/airflow/plugins
+    - ./logs:/opt/airflow/logs
+    - ${DADOS_HOST_DIR:-/opt/airflow-rotinas/dados}:/opt/airflow/dados
+    - ./ssh:/opt/airflow/ssh
+    - ./backups:/opt/airflow/backups
+  networks: [rotinas]
+  restart: unless-stopped
+
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: airflow
+    volumes:
+      - postgres-dados:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "airflow"]
+      interval: 5s
+      retries: 10
+    networks: [rotinas]
+    restart: unless-stopped
+
+  airflow-init:
+    <<: *airflow
+    restart: "no"
+    entrypoint: /bin/bash
+    command:
+      - -c
+      - |
+        airflow db migrate &&
+        (airflow users create --username "$${ADMIN_USUARIO}" --password "$${ADMIN_SENHA}" \
+          --firstname Admin --lastname Rotinas --role Admin --email "$${ADMIN_EMAIL}" || true) &&
+        (airflow users create --username "$${AIRFLOW_API_USUARIO}" --password "$${AIRFLOW_API_SENHA}" \
+          --firstname Servico --lastname API --role Admin --email "$${AIRFLOW_API_USUARIO}@localhost" || true)
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  airflow-apiserver:
+    <<: *airflow
+    command: api-server
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/api/v2/monitor/health"]
+      interval: 10s
+      retries: 12
+      start_period: 30s
+    depends_on:
+      airflow-init:
+        condition: service_completed_successfully
+
+  airflow-scheduler:
+    <<: *airflow
+    command: scheduler
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8974/health"]
+      interval: 15s
+      retries: 10
+      start_period: 30s
+    depends_on:
+      airflow-init:
+        condition: service_completed_successfully
+
+  airflow-dag-processor:
+    <<: *airflow
+    command: dag-processor
+    depends_on:
+      airflow-init:
+        condition: service_completed_successfully
+
+  mailpit:
+    image: axllent/mailpit:latest
+    profiles: [teste]
+    ports:
+      - "8025:8025"
+      - "1025:1025"
+    networks: [rotinas]
+
+  ssh-teste:
+    build: ./teste/ssh
+    profiles: [teste]
+    volumes:
+      - ./teste/ssh/chave_teste.pub:/chave_teste.pub:ro
+    networks: [rotinas]
+
+  testes:
+    <<: *airflow
+    profiles: [teste]
+    restart: "no"
+    working_dir: /opt/airflow
+    volumes:
+      - ./plugins:/opt/airflow/plugins
+      - ./dags:/opt/airflow/dags
+      - ./scripts_base:/opt/airflow/scripts_base
+      - ./tests:/opt/airflow/tests
+      - ./pytest.ini:/opt/airflow/pytest.ini:ro
+      - ./teste/ssh:/opt/airflow/teste/ssh:ro
+    entrypoint: []
+    command: ["pytest"]
+    depends_on:
+      airflow-apiserver:
+        condition: service_healthy
+      mailpit:
+        condition: service_started
+      ssh-teste:
+        condition: service_started
+
+networks:
+  rotinas:
+    ipam:
+      config:
+        - subnet: ${DOCKER_SUBNET:-172.30.0.0/24}
+
+volumes:
+  postgres-dados:
