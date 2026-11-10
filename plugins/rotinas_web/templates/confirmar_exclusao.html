@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block conteudo %}
+<h1>Excluir a rotina {{ rotina.nome }}?</h1>
+{% if rotina.descricao %}<p class="suave">{{ rotina.descricao }}</p>{% endif %}
+<ul>
+  <li>O arquivo <code>rotinas/{{ rotina.nome }}.yaml</code> será removido e o DAG sai do painel no próximo ciclo.</li>
+  {% if compartilhado %}
+  <li>O script <code>{{ rotina.script }}</code> será mantido, pois também é usado por: {{ compartilhado|join(", ") }}.</li>
+  {% elif rotina.script.startswith("rotinas/") %}
+  <li>O script <code>{{ rotina.script }}</code> também será removido.</li>
+  {% else %}
+  <li>O script <code>{{ rotina.script }}</code> não foi enviado pela tela e será mantido.</li>
+  {% endif %}
+  <li>O histórico de execuções continua no Airflow e a versão anterior fica no Git do diretório de dados.</li>
+</ul>
+<form method="post" action="{{ base }}/{{ rotina.nome }}/excluir" class="acoes">
+  <button type="submit" class="perigo">Excluir definitivamente</button>
+  <a class="botao" href="{{ base }}/">Cancelar</a>
+</form>
+{% endblock %}

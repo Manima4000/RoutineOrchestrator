@@ -1,0 +1,7 @@
+{% extends "base.html" %}
+{% block conteudo %}
+<h1>{{ titulo }}</h1>
+<div class="caixa erro" role="alert">{{ mensagem }}</div>
+{% if login %}<p><a class="botao primario" href="{{ login }}" target="_top">Entrar no Airflow</a></p>
+{% else %}<p><a href="{{ base }}/">Voltar para a lista de rotinas</a></p>{% endif %}
+{% endblock %}

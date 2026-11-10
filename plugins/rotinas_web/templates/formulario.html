@@ -1,0 +1,254 @@
+{% extends "base.html" %}
+{% macro erro(campo) -%}
+  {% if erros.get(campo) %}<div class="erro-campo" id="erro-{{ campo }}">{{ erros[campo] }}</div>{% endif %}
+{%- endmacro %}
+{% macro classe(campo) %}{% if erros.get(campo) %}com-erro{% endif %}{% endmacro %}
+{% block conteudo %}
+<h1>{{ titulo }}</h1>
+{% if erros %}<div class="caixa erro" role="alert">Não foi possível salvar. Corrija os campos indicados abaixo.
+  {% for chave, mensagem in gerais|dictsort %}<div>{{ mensagem }}</div>{% endfor %}
+</div>{% endif %}
+
+<form method="post" enctype="multipart/form-data"
+      action="{{ base }}/{{ rotina.nome ~ '/editar' if rotina else 'nova' }}">
+
+<fieldset>
+  <legend>Identificação</legend>
+  <div class="{{ classe('nome') }}">
+    <label for="nome">Nome</label>
+    {% if rotina %}
+      <input type="text" id="nome" name="nome" value="{{ v.nome }}" readonly>
+      <div class="ajuda">O nome é o identificador do DAG e não pode ser alterado; para renomear, crie outra rotina.</div>
+    {% else %}
+      <input type="text" id="nome" name="nome" value="{{ v.nome }}" required pattern="[a-z0-9_]{3,64}" autocomplete="off">
+      <div class="ajuda">De 3 a 64 caracteres: letras minúsculas, dígitos e _. Vira o nome do DAG no Airflow.</div>
+    {% endif %}
+    {{ erro('nome') }}
+  </div>
+  <div class="{{ classe('descricao') }}">
+    <label for="descricao">Descrição</label>
+    <input type="text" id="descricao" name="descricao" value="{{ v.descricao }}">
+    {{ erro('descricao') }}
+  </div>
+  <div class="{{ classe('ativa') }}">
+    <input type="hidden" name="ativa" value="false">
+    <label class="inline"><input type="checkbox" name="ativa" value="true" {% if v.ativa %}checked{% endif %}> Rotina ativa (roda no horário)</label>
+    {{ erro('ativa') }}
+  </div>
+</fieldset>
+
+<fieldset class="{{ classe('agendamento') }}">
+  <legend>Horário</legend>
+  <div class="linha">
+    <div>
+      <label for="tipo_horario">Frequência</label>
+      <select id="tipo_horario" name="tipo_horario">
+        {% for valor, rotulo in [("diario", "Diário"), ("semanal", "Semanal"), ("mensal", "Mensal"), ("cron", "Avançado (cron)")] %}
+          <option value="{{ valor }}" {% if v.tipo_horario == valor %}selected{% endif %}>{{ rotulo }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div data-horario="semanal">
+      <label for="dia_semana">Dia da semana</label>
+      <select id="dia_semana" name="dia_semana">
+        {% for rotulo in ["domingo", "segunda-feira", "terça-feira", "quarta-feira", "quinta-feira", "sexta-feira", "sábado"] %}
+          <option value="{{ loop.index0 }}" {% if v.dia_semana == loop.index0|string %}selected{% endif %}>{{ rotulo }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div data-horario="mensal">
+      <label for="dia_mes">Dia do mês</label>
+      <input type="number" id="dia_mes" name="dia_mes" min="1" max="28" value="{{ v.dia_mes }}">
+    </div>
+    <div data-horario="diario semanal mensal">
+      <label for="hora">Hora</label>
+      <input type="number" id="hora" name="hora" min="0" max="23" value="{{ v.hora }}">
+    </div>
+    <div data-horario="diario semanal mensal">
+      <label for="minuto">Minuto</label>
+      <input type="number" id="minuto" name="minuto" min="0" max="59" value="{{ v.minuto }}">
+    </div>
+    <div data-horario="cron" style="flex: 1;">
+      <label for="cron">Expressão cron</label>
+      <input type="text" id="cron" name="cron" value="{{ v.cron }}" placeholder="*/15 * * * *">
+    </div>
+  </div>
+  <div class="ajuda" data-horario="mensal">Dias de 1 a 28, para existir em todos os meses.</div>
+  <div class="ajuda" data-horario="cron">Cron de 5 campos (minuto hora dia mês dia-da-semana) ou @hourly, @daily, @weekly, @monthly. Fuso: America/Manaus.</div>
+  {{ erro('agendamento') }}
+  <div style="margin-top: 10px;">
+    <strong>Próximas execuções</strong> <span class="suave" id="descricao-horario"></span>
+    <ul class="proximas" id="proximas"><li class="suave">…</li></ul>
+  </div>
+</fieldset>
+
+<fieldset class="{{ classe('script') }}">
+  <legend>Script</legend>
+  {% if rotina %}
+    <label class="inline"><input type="radio" name="origem_script" value="manter" {% if v.origem_script == "manter" %}checked{% endif %}> Manter o atual (<code>{{ rotina.script }}</code>)</label>
+  {% endif %}
+  <label class="inline"><input type="radio" name="origem_script" value="upload" {% if v.origem_script == "upload" %}checked{% endif %}> Enviar arquivo</label>
+  <label class="inline"><input type="radio" name="origem_script" value="existente" {% if v.origem_script == "existente" %}checked{% endif %}> Usar um script já existente</label>
+  <div data-origem="upload">
+    <input type="file" id="script" name="script">
+    <div class="ajuda">Arquivo de texto de até 1 MB, começando com #! (ex.: #!/bin/bash). Saia com código diferente de 0 em caso de erro.</div>
+    {% if reenviar %}<div class="erro-campo">Por segurança, o navegador não guarda o arquivo: escolha-o de novo antes de salvar.</div>{% endif %}
+  </div>
+  <div data-origem="existente">
+    <select id="script_existente" name="script_existente">
+      <option value="">— escolha —</option>
+      {% for s in scripts %}<option value="{{ s }}" {% if v.script_existente == s %}selected{% endif %}>{{ s }}</option>{% endfor %}
+    </select>
+  </div>
+  {{ erro('script') }}
+  <div class="{{ classe('argumentos') }}">
+    <label for="argumentos">Argumentos</label>
+    <textarea id="argumentos" name="argumentos" rows="3">{{ v.argumentos }}</textarea>
+    <div class="ajuda">Um argumento por linha (espaços fazem parte do argumento). Nunca coloque senhas aqui: use Segredos.</div>
+    {{ erro('argumentos') }}
+  </div>
+</fieldset>
+
+<fieldset class="{{ classe('segredos') }}">
+  <legend>Segredos</legend>
+  <div class="ajuda">Cada segredo vira uma variável de ambiente do script, lida de uma Variable ou Connection já cadastrada no Airflow. Os valores nunca aparecem aqui.</div>
+  <div id="segredos">
+    {% for s in v.segredos %}
+      {{ linha_segredo(s) }}
+    {% endfor %}
+  </div>
+  <button type="button" id="adicionar-segredo">Adicionar segredo</button>
+  {{ erro('segredos') }}
+</fieldset>
+
+<fieldset>
+  <legend>Execução e avisos</legend>
+  <div class="linha">
+    <div class="{{ classe('tentativas') }}">
+      <label for="tentativas">Novas tentativas</label>
+      <input type="number" id="tentativas" name="tentativas" min="0" value="{{ v.tentativas }}">
+      {{ erro('tentativas') }}
+    </div>
+    <div class="{{ classe('intervalo_tentativa_min') }}">
+      <label for="intervalo_tentativa_min">Intervalo entre tentativas (min)</label>
+      <input type="number" id="intervalo_tentativa_min" name="intervalo_tentativa_min" min="1" value="{{ v.intervalo_tentativa_min }}">
+      {{ erro('intervalo_tentativa_min') }}
+    </div>
+    <div class="{{ classe('timeout_min') }}">
+      <label for="timeout_min">Tempo máximo (min)</label>
+      <input type="number" id="timeout_min" name="timeout_min" min="1" value="{{ v.timeout_min }}">
+      {{ erro('timeout_min') }}
+    </div>
+  </div>
+  <div class="{{ classe('avisar_falha') }}">
+    <input type="hidden" name="avisar_falha" value="false">
+    <label class="inline"><input type="checkbox" name="avisar_falha" value="true" {% if v.avisar_falha %}checked{% endif %}> Avisar por e-mail quando falhar</label>
+    {{ erro('avisar_falha') }}
+  </div>
+  <div class="{{ classe('emails_aviso') }}">
+    <label for="emails_aviso">E-mails extras para aviso</label>
+    <textarea id="emails_aviso" name="emails_aviso" rows="2">{{ v.emails_aviso }}</textarea>
+    <div class="ajuda">Separados por vírgula ou um por linha. Além dos destinatários padrão do ambiente.</div>
+    {{ erro('emails_aviso') }}
+  </div>
+</fieldset>
+
+<div class="acoes">
+  <button type="submit" class="primario">Salvar</button>
+  <a class="botao" href="{{ base }}/">Cancelar</a>
+</div>
+</form>
+
+<template id="modelo-segredo">{{ linha_segredo({"nome": "", "tipo": "variavel", "ref": "", "campo": "password"}) }}</template>
+
+<script>
+(function () {
+  var base = {{ base|tojson }};
+  var tipo = document.getElementById("tipo_horario");
+  var campos = ["tipo_horario", "hora", "minuto", "dia_semana", "dia_mes", "cron"];
+  var temporizador = null;
+
+  function mostrar(seletor, atributo, valor) {
+    document.querySelectorAll(seletor).forEach(function (el) {
+      el.classList.toggle("oculto", el.getAttribute(atributo).split(" ").indexOf(valor) < 0);
+    });
+  }
+
+  function atualizarProximas() {
+    var params = new URLSearchParams();
+    campos.forEach(function (c) { params.set(c, document.getElementById(c).value); });
+    var lista = document.getElementById("proximas");
+    var desc = document.getElementById("descricao-horario");
+    fetch(base + "/api/proximas?" + params.toString(), {credentials: "same-origin"})
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        lista.textContent = "";
+        if (d.erro) {
+          desc.textContent = "";
+          var li = document.createElement("li"); li.className = "erro-campo"; li.textContent = d.erro; lista.appendChild(li);
+          return;
+        }
+        desc.textContent = "(" + d.descricao + ")";
+        d.proximas.forEach(function (p) { var li = document.createElement("li"); li.textContent = p; lista.appendChild(li); });
+      })
+      .catch(function () { lista.textContent = ""; desc.textContent = "(não foi possível calcular agora)"; });
+  }
+
+  function horarioMudou() {
+    mostrar("[data-horario]", "data-horario", tipo.value);
+    clearTimeout(temporizador);
+    temporizador = setTimeout(atualizarProximas, 300);
+  }
+
+  function origemMudou() {
+    var marcada = document.querySelector("input[name=origem_script]:checked");
+    mostrar("[data-origem]", "data-origem", marcada ? marcada.value : "");
+  }
+
+  function prepararSegredo(linha) {
+    var tipoRef = linha.querySelector("select[name=segredo_tipo]");
+    var campo = linha.querySelector("[data-campo-conexao]");
+    function ajustar() { campo.classList.toggle("oculto", tipoRef.value !== "conexao"); }
+    tipoRef.addEventListener("change", ajustar);
+    ajustar();
+    linha.querySelector("[data-remover]").addEventListener("click", function () { linha.remove(); });
+  }
+
+  campos.forEach(function (c) {
+    var el = document.getElementById(c);
+    el.addEventListener("input", horarioMudou);
+    el.addEventListener("change", horarioMudou);
+  });
+  document.querySelectorAll("input[name=origem_script]").forEach(function (el) { el.addEventListener("change", origemMudou); });
+  document.querySelectorAll("#segredos .segredo").forEach(prepararSegredo);
+  document.getElementById("adicionar-segredo").addEventListener("click", function () {
+    var modelo = document.getElementById("modelo-segredo").content.firstElementChild.cloneNode(true);
+    document.getElementById("segredos").appendChild(modelo);
+    prepararSegredo(modelo);
+    modelo.querySelector("input").focus();
+  });
+  horarioMudou();
+  origemMudou();
+})();
+</script>
+{% endblock %}
+
+{% macro linha_segredo(s) -%}
+<div class="segredo">
+  <input type="text" name="segredo_nome" value="{{ s.nome }}" placeholder="NOME_DA_VARIAVEL" aria-label="Nome da variável de ambiente">
+  <span>←</span>
+  <select name="segredo_tipo" aria-label="Tipo de referência">
+    <option value="variavel" {% if s.tipo == "variavel" %}selected{% endif %}>Variable</option>
+    <option value="conexao" {% if s.tipo == "conexao" %}selected{% endif %}>Connection</option>
+  </select>
+  <input type="text" name="segredo_ref" value="{{ s.ref }}" placeholder="id da Variable/Connection" aria-label="Referência">
+  <span data-campo-conexao>
+    campo
+    {# nunca desabilitar: campos desabilitados não são enviados e desalinhariam as linhas #}
+    <select name="segredo_campo" aria-label="Campo da Connection">
+      {% for c in campos_conexao %}<option value="{{ c }}" {% if s.campo == c %}selected{% endif %}>{{ c }}</option>{% endfor %}
+    </select>
+  </span>
+  <button type="button" data-remover>Remover</button>
+</div>
+{%- endmacro %}

@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block conteudo %}
+<div class="linha" style="justify-content: space-between; margin-bottom: 12px;">
+  <h1 style="margin: 0;">Rotinas</h1>
+  <a class="botao primario" href="{{ base }}/nova">Nova rotina</a>
+</div>
+
+{% if aviso %}<div class="caixa aviso" role="alert">{{ aviso }}</div>{% endif %}
+{% if api_fora %}<div class="caixa aviso">Não foi possível consultar o Airflow agora: status e última execução estão indisponíveis.</div>{% endif %}
+
+{% if erros_yaml %}
+<div class="caixa erro" role="alert">
+  <strong>Arquivos de rotina com erro (não viram DAG até serem corrigidos):</strong>
+  <ul>
+  {% for arquivo, mensagem in erros_yaml|dictsort %}
+    <li><code>rotinas/{{ arquivo }}</code><pre>{{ mensagem }}</pre></li>
+  {% endfor %}
+  </ul>
+</div>
+{% endif %}
+
+{% if linhas %}
+<table>
+  <thead>
+    <tr><th>Nome</th><th>Horário</th><th>Situação</th><th>Status no Airflow</th><th>Última execução</th><th>Próxima execução</th><th>Ações</th></tr>
+  </thead>
+  <tbody>
+  {% for l in linhas %}
+    <tr>
+      <td><a href="/dags/{{ l.r.nome }}" target="_top"><strong>{{ l.r.nome }}</strong></a>
+        {% if l.r.descricao %}<div class="suave">{{ l.r.descricao }}</div>{% endif %}</td>
+      <td>{{ l.horario }}</td>
+      <td>{% if l.r.ativa %}<span class="selo ativa">Ativa</span>{% else %}<span class="selo inativa">Inativa</span>{% endif %}</td>
+      <td>{{ l.status }}{% if l.divergente %}<div class="divergente">Diverge do YAML — use os botões desta tela</div>{% endif %}</td>
+      <td>{{ l.ultima }}</td>
+      <td>{{ l.proxima }}</td>
+      <td>
+        <div class="acoes">
+          <a class="botao" href="{{ base }}/{{ l.r.nome }}/editar">Editar</a>
+          <form method="post" action="{{ base }}/{{ l.r.nome }}/ativa">
+            <input type="hidden" name="ativa" value="{{ 'false' if l.r.ativa else 'true' }}">
+            <button type="submit">{{ 'Desativar' if l.r.ativa else 'Ativar' }}</button>
+          </form>
+          <a class="botao" href="{{ base }}/{{ l.r.nome }}/excluir">Excluir</a>
+        </div>
+      </td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p class="suave">Nenhuma rotina cadastrada ainda. Use “Nova rotina” para criar a primeira.</p>
+{% endif %}
+{% endblock %}

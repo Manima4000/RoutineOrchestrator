@@ -1,0 +1,5 @@
+# Só rotinas_web/__init__.py define plugin; o resto são módulos importados por ele
+# (o Airflow carregaria cada .py como módulo solto e registraria erros de import).
+rotinas_core/
+rotinas_web/app.py
+rotinas_web/seguranca.py
