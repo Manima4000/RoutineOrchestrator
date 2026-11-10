@@ -6,12 +6,12 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 import yaml
-from croniter import croniter
+
+from rotinas_core.agenda import cron_valido
 
 RE_NOME = re.compile(r"^[a-z0-9_]{3,64}$")
 RE_SEGREDO = re.compile(r"^[A-Z_][A-Z0-9_]*$")
 CAMPOS_CONEXAO = ("login", "password", "host", "port", "schema", "extra")
-PRESETS = ("@hourly", "@daily", "@weekly", "@monthly")
 PADROES = {
     "descricao": "",
     "ativa": True,
@@ -25,11 +25,6 @@ CAMPOS_CONHECIDOS = {
     "intervalo_tentativa_min", "timeout_min", "avisar_falha", "emails_aviso", "segredos",
     "criado_por", "atualizado_em",
 }
-
-
-def _cron_valido(expr: str) -> bool:
-    # Task 3 move isto para agenda.cron_valido.
-    return expr in PRESETS or croniter.is_valid(expr)
 
 
 @dataclass(frozen=True)
@@ -166,7 +161,7 @@ def validar(dados: dict, scripts_dir: Path) -> Rotina:
         erros["nome"] = "Use de 3 a 64 caracteres: letras minúsculas, dígitos e _."
 
     agendamento = dados.get("agendamento")
-    if not isinstance(agendamento, str) or not _cron_valido(agendamento.strip()):
+    if not isinstance(agendamento, str) or not cron_valido(agendamento.strip()):
         erros["agendamento"] = "Agendamento inválido (use cron de 5 campos ou @hourly, @daily, @weekly, @monthly)."
 
     script = dados.get("script")
