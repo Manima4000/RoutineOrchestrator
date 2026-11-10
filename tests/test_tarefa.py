@@ -284,3 +284,34 @@ def test_tempo_esgotado_tambem_vira_falha(config):
 
     with pytest.raises(FalhaRotina, match="Tempo limite"):
         _rodar(config, Chamadas(), executar_fn=exec_falha)
+
+
+# ---------- redação de segredos nas linhas guardadas ----------
+
+def _exec_loga(*linhas, erro=None):
+    def fn(script, argumentos, env, timeout_s, log):
+        for l in linhas:
+            log(l)
+        if erro:
+            raise erro
+    return fn
+
+
+def test_segredo_impresso_pelo_script_e_redigido(config):
+    _yaml(config, extra="segredos:\n  DB_SENHA: {variavel: v1}\n")
+    with pytest.raises(FalhaRotina) as ei:
+        _rodar(config, Chamadas(), {"v1": "s3nha"},
+               executar_fn=_exec_loga("senha=s3nha", "ok",
+                                      erro=CodigoSaidaNaoZero(1, "falhou com s3nha")))
+    assert ei.value.ultimas_linhas == ["senha=***", "ok"]
+    assert "s3nha" not in ei.value.mensagem
+
+
+def test_corpo_da_chave_e_redigido(config):
+    _yaml(config)
+    conn = SimpleNamespace(login="svc", extra={"private_key": "-----BEGIN KEY-----\nABCDEF\nGHIJKL\n-----END KEY-----\n"})
+    with pytest.raises(FalhaRotina) as ei:
+        _rodar(config, Chamadas(), conexoes={"ssh_padrao": conn},
+               executar_fn=_exec_loga("-----BEGIN KEY-----", "ABCDEF", "x GHIJKL y", "-----END KEY-----",
+                                      erro=CodigoSaidaNaoZero(1, "x")))
+    assert ei.value.ultimas_linhas == ["-----BEGIN KEY-----", "***", "x *** y", "-----END KEY-----"]

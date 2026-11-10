@@ -165,7 +165,22 @@ def _executar(
 
     ultimas: deque[str] = deque(maxlen=30)
 
+    sensiveis = list(segredos.values())
+    if chave:
+        sensiveis += [
+            l.strip() for l in chave.splitlines()
+            if l.strip() and not l.strip().startswith("-----")
+        ]
+        sensiveis.append(chave.strip())
+    sensiveis = sorted({v for v in sensiveis if v}, key=len, reverse=True)
+
+    def redigir(texto: str) -> str:
+        for v in sensiveis:
+            texto = texto.replace(v, "***")
+        return texto
+
     def log(linha: str) -> None:
+        linha = redigir(linha)
         ultimas.append(linha)
         logger.info("%s", linha)
 
@@ -178,7 +193,7 @@ def _executar(
                 rotina.timeout_min * 60, log,
             )
         except ErroExecucao as e:
-            raise FalhaRotina(str(e), list(ultimas)) from e
+            raise FalhaRotina(redigir(str(e)), list(ultimas)) from e
 
 
 def executar_rotina(nome: str, contexto: dict) -> None:
