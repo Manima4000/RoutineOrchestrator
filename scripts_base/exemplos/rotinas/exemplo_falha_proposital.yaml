@@ -1,0 +1,8 @@
+nome: exemplo_falha_proposital
+descricao: Sempre falha, para demonstrar painel vermelho, retentativa e e-mail (inativa por padrão)
+ativa: false
+agendamento: "0 3 * * *"
+script: exemplos/exemplo_falha_proposital.sh
+tentativas: 1
+intervalo_tentativa_min: 1
+timeout_min: 5

@@ -54,3 +54,14 @@ echo "Usuário Admin: $(grep '^ADMIN_USUARIO=' .env | cut -d= -f2-)  Senha: $(gr
 echo
 echo "Chave Fernet: $(grep '^AIRFLOW__CORE__FERNET_KEY=' .env | cut -d= -f2-)"
 echo "ATENÇÃO: Guarde esta chave em local seguro (sem ela, variáveis e conexões cifradas não podem ser recuperadas)."
+
+# Rotinas de exemplo (backup do banco, verificação HTTP, backup do /etc, falha proposital)
+if [ "$TESTE" = 1 ]; then
+    resp=s
+else
+    read -r -p "Instalar as rotinas de exemplo no diretório de dados? (s/N) " resp || resp=""
+fi
+case "$resp" in
+    s | S | sim | SIM | Sim) scripts_base/instalar_exemplos.sh ;;
+    *) echo "Rotinas de exemplo não instaladas (depois: scripts_base/instalar_exemplos.sh)." ;;
+esac

@@ -1,0 +1,7 @@
+nome: verifica_servicos_http
+descricao: A cada 30 minutos, confere se as URLs informadas respondem 200
+ativa: true
+agendamento: "*/30 * * * *"
+script: exemplos/verifica_servicos_http.py
+argumentos: ["http://airflow-apiserver:8080/api/v2/monitor/health"]
+timeout_min: 5

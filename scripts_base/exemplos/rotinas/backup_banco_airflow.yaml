@@ -1,0 +1,10 @@
+nome: backup_banco_airflow
+descricao: Backup diário (pg_dump) do banco de metadados do Airflow, mantendo os 7 últimos
+ativa: true
+agendamento: "0 1 * * *"
+script: exemplos/backup_banco_airflow.sh
+argumentos: ["7", "postgres", "airflow", "airflow"]  # N, host, usuário, banco
+tentativas: 1
+timeout_min: 30
+segredos:
+  PGPASSWORD: { conexao: postgres_airflow, campo: password }

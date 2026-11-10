@@ -1,0 +1,8 @@
+nome: backup_etc_servidor_teste
+descricao: Compacta o /etc do servidor de teste via SSH e guarda os 7 últimos
+ativa: true
+agendamento: "0 2 * * *"
+script: exemplos/backup_etc_servidor_teste.sh
+argumentos: ["ssh-teste", "7"]
+tentativas: 2
+timeout_min: 15

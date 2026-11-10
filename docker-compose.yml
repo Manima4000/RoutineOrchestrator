@@ -77,6 +77,16 @@ services:
         }
         criar "$${ADMIN_USUARIO}" "$${ADMIN_SENHA}" Admin Rotinas "$${ADMIN_EMAIL}"
         criar "$${AIRFLOW_API_USUARIO}" "$${AIRFLOW_API_SENHA}" Servico API "$${AIRFLOW_API_USUARIO}@localhost"
+        # Connection do banco do Airflow (usada pela rotina de exemplo backup_banco_airflow);
+        # importada de arquivo temporário 600 para a senha não aparecer na linha de comando.
+        if airflow connections get postgres_airflow >/dev/null 2>&1; then
+          echo "Connection postgres_airflow já existe."
+        else
+          umask 077
+          python3 -c 'import json,os; print(json.dumps({"postgres_airflow": {"conn_type": "postgres", "host": "postgres", "port": 5432, "login": "airflow", "schema": "airflow", "password": os.environ["POSTGRES_PASSWORD"]}}))' > /tmp/conn_pg.json
+          airflow connections import /tmp/conn_pg.json
+          rm -f /tmp/conn_pg.json
+        fi
     depends_on:
       postgres:
         condition: service_healthy
@@ -127,6 +137,7 @@ services:
     profiles: [teste]
     volumes:
       - ./teste/ssh/chave_teste.pub:/chave_teste.pub:ro
+      - ./ssh:/chaves-ambiente:ro  # id_ambiente.pub (se existir) também é aceita
     networks: [rotinas]
 
   testes:
