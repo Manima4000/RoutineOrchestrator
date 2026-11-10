@@ -3,8 +3,8 @@ name: rotinas
 x-build: &build
   context: .
   args:
-    HTTP_PROXY: ${HTTP_PROXY:-}
-    HTTPS_PROXY: ${HTTPS_PROXY:-}
+    BUILD_HTTP_PROXY: ${BUILD_HTTP_PROXY:-}
+    BUILD_HTTPS_PROXY: ${BUILD_HTTPS_PROXY:-}
 
 x-ambiente: &ambiente
   AIRFLOW__CORE__EXECUTOR: LocalExecutor
@@ -16,6 +16,8 @@ x-ambiente: &ambiente
   AIRFLOW__DAG_PROCESSOR__REFRESH_INTERVAL: "30"
   HOME: /home/airflow
   USER: airflow
+  NO_PROXY: airflow-apiserver,postgres,mailpit,ssh-teste,localhost,127.0.0.1
+  no_proxy: airflow-apiserver,postgres,mailpit,ssh-teste,localhost,127.0.0.1
   ROTINAS_DIR: /opt/airflow/dados/rotinas
   SCRIPTS_DIR: /opt/airflow/dados/scripts
   DADOS_DIR: /opt/airflow/dados
@@ -63,11 +65,18 @@ services:
     command:
       - -c
       - |
-        airflow db migrate &&
-        (airflow users create --username "$${ADMIN_USUARIO}" --password "$${ADMIN_SENHA}" \
-          --firstname Admin --lastname Rotinas --role Admin --email "$${ADMIN_EMAIL}" || true) &&
-        (airflow users create --username "$${AIRFLOW_API_USUARIO}" --password "$${AIRFLOW_API_SENHA}" \
-          --firstname Servico --lastname API --role Admin --email "$${AIRFLOW_API_USUARIO}@localhost" || true)
+        set -e
+        airflow db migrate
+        existentes="$$(airflow users list --output plain)"
+        criar() { # criar USUARIO SENHA NOME SOBRENOME EMAIL (pula só se já existir; qualquer outra falha aborta)
+          if echo "$$existentes" | grep -qw -- "$$1"; then
+            echo "Usuário $$1 já existe."
+          else
+            airflow users create --username "$$1" --password "$$2" --firstname "$$3" --lastname "$$4" --role Admin --email "$$5"
+          fi
+        }
+        criar "$${ADMIN_USUARIO}" "$${ADMIN_SENHA}" Admin Rotinas "$${ADMIN_EMAIL}"
+        criar "$${AIRFLOW_API_USUARIO}" "$${AIRFLOW_API_SENHA}" Servico API "$${AIRFLOW_API_USUARIO}@localhost"
     depends_on:
       postgres:
         condition: service_healthy
