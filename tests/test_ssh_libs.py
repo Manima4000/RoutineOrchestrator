@@ -55,6 +55,15 @@ def test_bash_repassa_codigo_remoto(env_ssh):
     assert r.returncode == 7
 
 
+def test_bash_varios_argumentos_citados(env_ssh):
+    r = bash('remoto ssh-teste touch "/tmp/a b" && remoto ssh-teste test -f "/tmp/a b"', env_ssh)
+    assert r.returncode == 0, r.stderr
+    r = bash("remoto ssh-teste printf '%s' '$(id)'", env_ssh)
+    assert r.stdout == "$(id)"
+    r = bash("remoto ssh-teste printf '%s' 'a;b c'", env_ssh)
+    assert r.stdout == "a;b c"
+
+
 def test_bash_sem_chave_mensagem_em_portugues(env_ssh):
     env = {k: v for k, v in env_ssh.items() if k != "SSH_CHAVE"}
     r = run(["bash", "-c", f"source {LIB}/ssh.sh; remoto ssh-teste true; echo continua"], env=env)

@@ -29,6 +29,9 @@ _ssh_preparar() {
 }
 
 # remoto HOST COMANDO...  -> executa o comando no alvo; devolve o código de saída remoto
+# Contrato: com UM argumento após HOST, ele é uma string de shell interpretada no alvo
+# (ex.: remoto h 'cd /x && ls'). Com DOIS ou mais, cada argumento é citado (printf %q) e chega
+# literalmente (ex.: remoto h touch "a b" cria um arquivo; '$(id)' não é executado).
 remoto() {
     if [ "$#" -lt 2 ]; then
         echo "Uso: remoto HOST COMANDO..." >&2
@@ -37,7 +40,13 @@ remoto() {
     _ssh_preparar || return $?
     local host="$1"
     shift
-    ssh "${_SSH_OPCOES[@]}" "$_SSH_USUARIO@$host" "$@"
+    local comando
+    if [ "$#" -eq 1 ]; then
+        comando="$1"
+    else
+        printf -v comando '%q ' "$@"
+    fi
+    ssh "${_SSH_OPCOES[@]}" "$_SSH_USUARIO@$host" "$comando"
 }
 
 # copiar_para HOST ORIGEM_LOCAL DESTINO_REMOTO
