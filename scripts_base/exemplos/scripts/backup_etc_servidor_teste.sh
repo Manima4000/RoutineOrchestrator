@@ -3,6 +3,7 @@
 # Uso: backup_etc_servidor_teste.sh HOST [N=7]
 # Requer: usuário de serviço no alvo com "sudo tar" liberado (ver docs de preparação de alvo).
 set -euo pipefail
+umask 077
 
 HOST="${1:?Uso: backup_etc_servidor_teste.sh HOST [N=7]}"
 MANTER="${2:-7}"
@@ -25,10 +26,15 @@ limpar() {
 trap limpar EXIT
 
 echo "Compactando /etc em $HOST..."
-# tar pode sair com 1 ("arquivo mudou durante a leitura"): o backup continua válido
+# umask 077 + redirecionamento pelo shell do usuário de serviço: o arquivo (inclui shadow e chaves do
+# host) pertence a ele e fica 600 no alvo (um arquivo criado pelo sudo seria de root e ilegível ao scp).
+# tar sai com 1 em "arquivo mudou durante a leitura" (backup válido), mas sudo também sai com 1
+# em falha própria: só aceita código 1 se o arquivo existir e não estiver vazio.
 rc=0
-remoto "$HOST" "sudo tar czf ~/$nome -C / etc" || rc=$?
-if [ "$rc" -gt 1 ]; then
+remoto "$HOST" "umask 077; sudo -n tar czf - -C / etc > ~/$nome" || rc=$?
+if [ "$rc" -eq 1 ] && remoto "$HOST" "test -s ~/$nome"; then
+    echo "AVISO: tar terminou com código 1 (arquivos mudaram durante a leitura); backup mantido." >&2
+elif [ "$rc" -ne 0 ]; then
     echo "ERRO: tar remoto falhou (código $rc)" >&2
     exit "$rc"
 fi

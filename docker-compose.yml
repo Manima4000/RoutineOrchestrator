@@ -137,7 +137,7 @@ services:
     profiles: [teste]
     volumes:
       - ./teste/ssh/chave_teste.pub:/chave_teste.pub:ro
-      - ./ssh:/chaves-ambiente:ro  # id_ambiente.pub (se existir) também é aceita
+      - ./teste/ssh/pub:/chaves-ambiente:ro  # só chaves públicas (cópia de ssh/id_ambiente.pub, se existir)
     networks: [rotinas]
 
   testes:

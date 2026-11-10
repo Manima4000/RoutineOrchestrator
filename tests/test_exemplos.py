@@ -49,7 +49,9 @@ def test_backup_etc_servidor_teste_ponta_a_ponta(env_ssh, tmp_path):  # noqa: F8
     env = {**env_ssh, "BACKUPS_DIR": str(tmp_path), "ROTINA_EXECUCAO": "teste"}
     for _ in range(3):
         executar(EXEMPLOS / "scripts/backup_etc_servidor_teste.sh", ["ssh-teste", "2"], env, 120, print)
-    assert len(list((tmp_path / "etc-ssh-teste").glob("*.tar.gz"))) == 2
+    arqs = list((tmp_path / "etc-ssh-teste").glob("*.tar.gz"))
+    assert len(arqs) == 2
+    assert all(a.stat().st_mode & 0o777 == 0o600 for a in arqs)
 
 
 @pytest.mark.integracao
@@ -60,7 +62,8 @@ def test_verifica_servicos_http_ok_e_falha():
     with pytest.raises(CodigoSaidaNaoZero):
         executar(EXEMPLOS / "scripts/verifica_servicos_http.py", [url, "http://nao-existe.invalid"], {}, 60, linhas.append)
     assert any("nao-existe.invalid" in l for l in linhas)
-    assert not any(l.strip().endswith(url) and "FALHOU" in l for l in linhas)
+    assert "OK      " + url in [l.rstrip() for l in linhas]
+    assert not any("FALHOU" in l and url in l for l in linhas)
 
 
 @pytest.mark.integracao

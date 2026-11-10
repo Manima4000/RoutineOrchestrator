@@ -41,6 +41,8 @@ docker compose exec -T "$SERVICO" airflow connections import "$ARQ_REMOTO" --ove
 
 mkdir -p "$RAIZ/ssh"
 install -m 644 "$TMP/id.pub" "$RAIZ/ssh/id_ambiente.pub"
+# cópia só da pública para o servidor SSH de teste (profile teste), sem expor o resto de ssh/
+if [ -d "$RAIZ/teste/ssh/pub" ]; then install -m 644 "$TMP/id.pub" "$RAIZ/teste/ssh/pub/id_ambiente.pub"; fi
 
 echo
 echo "Connection ssh_padrao criada/atualizada (usuário: $USUARIO)."

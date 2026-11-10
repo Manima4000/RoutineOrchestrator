@@ -6,3 +6,5 @@
 teste/ssh/chave_teste*
 __pycache__/
 .pytest_cache/
+teste/ssh/pub/*
+!teste/ssh/pub/.gitkeep

@@ -37,6 +37,8 @@ if [ "$TESTE" = 1 ]; then
         ssh-keygen -t ed25519 -N "" -C "chave-teste" -f teste/ssh/chave_teste >/dev/null
         echo "Chave SSH de teste gerada em teste/ssh/chave_teste."
     fi
+    mkdir -p teste/ssh/pub
+    if [ -f ssh/id_ambiente.pub ]; then cp ssh/id_ambiente.pub teste/ssh/pub/id_ambiente.pub; fi
 fi
 
 DADOS_HOST_DIR="$(grep '^DADOS_HOST_DIR=' .env | cut -d= -f2-)"
