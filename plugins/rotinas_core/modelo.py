@@ -116,7 +116,7 @@ def _segredos(dados: dict, erros: dict) -> dict[str, RefSegredo]:
         return {}
     problemas, saida = [], {}
     for nome, ref in bruto.items():
-        if not isinstance(nome, str) or not RE_SEGREDO.match(nome):
+        if not isinstance(nome, str) or not RE_SEGREDO.fullmatch(nome):
             problemas.append(f"Nome de segredo inválido: {nome!r} (use MAIÚSCULAS, dígitos e _).")
             continue
         if not isinstance(ref, dict) or not set(ref) <= {"variavel", "conexao", "campo"}:
@@ -140,12 +140,15 @@ def _checar_script(script, scripts_dir: Path, erros: dict) -> None:
     if not isinstance(script, str) or not script:
         erros["script"] = "Informe o caminho do script, relativo à pasta de scripts."
         return
-    base = Path(scripts_dir).resolve()
-    alvo = (base / script).resolve()
-    if Path(script).is_absolute() or not alvo.is_relative_to(base):
-        erros["script"] = "O script deve ficar dentro da pasta de scripts."
-    elif not alvo.is_file():
-        erros["script"] = f"Script não encontrado: {script}"
+    try:
+        base = Path(scripts_dir).resolve()
+        alvo = (base / script).resolve()
+        if Path(script).is_absolute() or not alvo.is_relative_to(base):
+            erros["script"] = "O script deve ficar dentro da pasta de scripts."
+        elif not alvo.is_file():
+            erros["script"] = f"Script não encontrado: {script}"
+    except (ValueError, OSError):
+        erros["script"] = "Caminho de script inválido."
 
 
 def validar(dados: dict, scripts_dir: Path) -> Rotina:
@@ -159,7 +162,7 @@ def validar(dados: dict, scripts_dir: Path) -> Rotina:
         erros["campos"] = " ".join(f"Campo desconhecido: {c}" for c in desconhecidos)
 
     nome = dados.get("nome")
-    if not isinstance(nome, str) or not RE_NOME.match(nome):
+    if not isinstance(nome, str) or not RE_NOME.fullmatch(nome):
         erros["nome"] = "Use de 3 a 64 caracteres: letras minúsculas, dígitos e _."
 
     agendamento = dados.get("agendamento")

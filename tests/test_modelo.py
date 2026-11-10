@@ -125,3 +125,27 @@ def test_nome_duplicado_entre_arquivos(tmp_path, tmp_scripts):
         _yaml(rd, f, "nome: dup\nagendamento: '@daily'\nscript: a.sh\n")
     validas, erros = carregar_rotinas(rd, tmp_scripts)
     assert validas == [] and set(erros) == {"x.yaml", "y.yaml"}
+
+
+@pytest.mark.parametrize("campo,valor", [
+    ("nome", "abc\n"), ("script", "a\0b"), ("script", "x" * 5000),
+])
+def test_regressao_newline_e_nul(tmp_scripts, campo, valor):
+    with pytest.raises(RotinaInvalida) as e:
+        validar({**BASE, campo: valor}, tmp_scripts)
+    assert campo in e.value.erros
+
+
+def test_segredo_com_newline(tmp_scripts):
+    with pytest.raises(RotinaInvalida) as e:
+        validar({**BASE, "segredos": {"OK\n": {"variavel": "v"}}}, tmp_scripts)
+    assert "segredos" in e.value.erros
+
+
+def test_carregar_nul_nao_quebra_isolamento(tmp_path, tmp_scripts):
+    rd = tmp_path / "rotinas"
+    rd.mkdir()
+    (rd / "a.yaml").write_text("nome: rotina_a\nagendamento: '@daily'\nscript: a.sh\n")
+    (rd / "b.yaml").write_text('nome: rotina_b\nagendamento: "@daily"\nscript: "a\\0b"\n')
+    validas, erros = carregar_rotinas(rd, tmp_scripts)
+    assert [r.nome for r in validas] == ["rotina_a"] and set(erros) == {"b.yaml"}
