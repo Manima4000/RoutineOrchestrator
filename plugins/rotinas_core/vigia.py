@@ -14,6 +14,7 @@ from .notificacao import montar_aviso_vigia
 
 FUSO = ZoneInfo("America/Manaus")
 MARGEM_SCHEDULER_MIN = 5
+CARENCIA_DAG_NOVO_MIN = 10  # tempo para o dag-processor ler um YAML recém-criado
 
 
 @dataclass(frozen=True)
@@ -74,6 +75,9 @@ def avaliar(rotinas: list[Rotina], erros_yaml: dict[str, str], erros_importacao:
     for r in rotinas:
         e = estados.get(r.nome)
         if e is None or not e.existe:
+            ref = _referencia(r)
+            if ref is not None and agora - ref < timedelta(minutes=CARENCIA_DAG_NOVO_MIN):
+                continue
             problemas.append(Problema(f"importacao:{r.nome}", f"DAG da rotina {r.nome} não encontrado no Airflow."))
             continue
         if r.ativa == e.pausado:

@@ -1,4 +1,6 @@
 from datetime import datetime, timedelta
+
+import pytest
 from zoneinfo import ZoneInfo
 
 from rotinas_core.api_airflow import EstadoDag
@@ -89,6 +91,23 @@ def test_dag_inexistente_e_problema_de_importacao():
     assert chaves(p) == ["importacao:r"] and "DAG" in p[0].mensagem and "não encontrado" in p[0].mensagem
 
 
+def _sem_dag(atualizado_em):
+    est = {"r": EstadoDag(False, None, False, False)}
+    return chaves(avaliar([rot(atualizado_em=atualizado_em)], {}, [], est, AGORA))
+
+
+def test_dag_novo_dentro_da_carencia_nao_alerta():
+    assert _sem_dag((AGORA - timedelta(minutes=2)).isoformat()) == []
+
+
+def test_dag_ausente_apos_carencia_alerta():
+    assert _sem_dag((AGORA - timedelta(minutes=11)).isoformat()) == ["importacao:r"]
+
+
+def test_dag_ausente_sem_atualizado_em_alerta():
+    assert _sem_dag(None) == ["importacao:r"]
+
+
 def test_erros_yaml_e_importacao():
     p = avaliar([], {"b.yaml": "campo x"}, ["dags/x.py\nTraceback\nValueError: ruim"], {}, AGORA)
     assert chaves(p) == ["yaml:b.yaml", "importacao:dags/x.py"]
@@ -130,7 +149,7 @@ def _ciclo(estado, enviados, falha=False, yaml=None):
 def test_ciclo_envia_novo_e_guarda_estado():
     env = []
     g = _ciclo({"chaves": []}, env, yaml={"b.yaml": "ruim"})
-    assert len(env) == 1 and "yaml:b.yaml" not in g.get("chaves", []) or g == {"chaves": ["yaml:b.yaml"]}
+    assert len(env) == 1
     assert g == {"chaves": ["yaml:b.yaml"]}
 
 
@@ -147,9 +166,9 @@ def test_ciclo_resolvido_envia():
 
 
 def test_ciclo_falha_no_envio_nao_guarda_estado():
-    g = {}
-    try:
-        g = _ciclo({"chaves": []}, [], falha=True, yaml={"b.yaml": "ruim"})
-    except OSError:
-        pass
-    assert g == {}
+    guardado = {}
+    with pytest.raises(OSError):
+        ciclo(rotinas=[], erros_yaml={"b.yaml": "ruim"}, cliente=Cli({}), agora=AGORA,
+              ler_estado=lambda: {"chaves": []}, gravar_estado=lambda d: guardado.update(d),
+              enviar=lambda a, c: (_ for _ in ()).throw(OSError("smtp fora")))
+    assert guardado == {}
