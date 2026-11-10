@@ -90,8 +90,8 @@ services:
     <<: *airflow
     command: scheduler
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8974/health"]
-      interval: 15s
+      test: ["CMD-SHELL", "airflow jobs check --job-type SchedulerJob --local"]
+      interval: 30s
       retries: 10
       start_period: 30s
     depends_on:
