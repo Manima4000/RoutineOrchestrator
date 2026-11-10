@@ -141,7 +141,7 @@ services:
       - ./tests:/opt/airflow/tests
       - ./pytest.ini:/opt/airflow/pytest.ini:ro
       - ./teste/ssh:/opt/airflow/teste/ssh:ro
-    entrypoint: []
+    entrypoint: ["/usr/bin/dumb-init", "--", "/entrypoint", "bash", "-c", "exec \"$$@\"", "--"]  # passa pelo entrypoint do Airflow, que cria a entrada em /etc/passwd do uid (ssh exige)
     command: ["pytest"]
     depends_on:
       airflow-apiserver:
