@@ -96,7 +96,10 @@ def cron_para_preset(expr: str) -> dict | None:
 def descrever(expr: str) -> str:
     if expr == "@hourly":
         return "De hora em hora"
-    p = cron_para_preset(expr)
+    campos = expr.split() if isinstance(expr, str) else []
+    if len(campos) == 5 and campos[4] == "7":  # 7 também é domingo
+        campos[4] = "0"
+    p = cron_para_preset(" ".join(campos))
     if p is None:
         return f"Cron: {expr}"
     hhmm = f"{p['hora']:02d}:{p['minuto']:02d}"

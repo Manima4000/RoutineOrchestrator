@@ -77,6 +77,7 @@ def test_descrever():
     assert descrever("@monthly") == "Mensal, dia 1 às 00:00"
     assert descrever("*/5 * * * *") == "Cron: */5 * * * *"
     assert descrever("0 8 * * 1") == "Semanal, segunda-feira às 08:00"
+    assert descrever("0 2 * * 7") == "Semanal, domingo às 02:00"
     assert descrever("0 8 * * 6") == "Semanal, sábado às 08:00"
 
 
