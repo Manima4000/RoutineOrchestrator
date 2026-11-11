@@ -39,7 +39,6 @@ Fluxo: `rotinas/<nome>.yaml` + `scripts/...` → `dags/gerador_rotinas.py` cria 
 | [docs/criar-rotinas.md](docs/criar-rotinas.md) | Criar rotinas pela tela e pelo YAML; como escrever os scripts |
 | [docs/operacao.md](docs/operacao.md) | Dia a dia: painel, logs, avisos da vigia, backup/restauração, atualização, produção |
 | [docs/homologacao.md](docs/homologacao.md) | Roteiro de homologação com os resultados obtidos |
-| [docs/instrucao.md](docs/instrucao.md) | Roteiro da aula (cerca de 1h30) |
 | [docs/superpowers/specs/2026-11-10-airflow-rotinas-design.md](docs/superpowers/specs/2026-11-10-airflow-rotinas-design.md) | Especificação do projeto |
 
 ## Início rápido (homologação)
