@@ -123,6 +123,8 @@ O script roda dentro do container, como usuário `airflow`, com as ferramentas d
 
 ## Guia para escrever scripts
 
+> Resumo de uma página, com checklist e esqueletos: [padrao-de-scripts.md](padrao-de-scripts.md).
+
 ### Regras de ouro
 
 - **Falhou, saia com código diferente de 0.** Em bash, comece com `set -euo pipefail`. Sem isso o Airflow mostra verde para uma rotina que falhou.
