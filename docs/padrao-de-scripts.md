@@ -14,8 +14,8 @@ O Airflow copia o script para uma pasta temporária, torna-o executável, roda e
 | Passa os `argumentos` como texto | Converta e valide; trate argumento faltando |
 | Entrega os `segredos` como variáveis de ambiente | Leia do ambiente; senha nunca no script, no YAML nem nos argumentos |
 | Encerra o processo ao passar de `timeout_min` | O script precisa terminar; use `timeout` nos comandos remotos |
-| Roda no container como usuário `airflow` | Só vale o que a imagem tem (bash, python3 com paramiko e netmiko, ssh/scp, rsync, curl, psql, tar, git, openssl) |
-| Guarda só `BACKUPS_DIR` entre execuções | Grave arquivos de saída ali; o resto some quando o container é recriado |
+| Roda no container como usuário `airflow` | Só vale o que a imagem tem: o básico (bash, python3 com paramiko e netmiko, ssh/scp, rsync, curl, psql, tar, git) mais o listado em `ferramentas/sistema.txt` e `ferramentas/python.txt` |
+| Guarda só `BACKUPS_DIR` entre execuções | Grave arquivos de saída ali; o resto some quando o container é recriado. Na VM do Airflow, é a pasta `backups/` do projeto |
 
 ## Checklist antes de entregar um script
 
@@ -38,6 +38,20 @@ O Airflow copia o script para uma pasta temporária, torna-o executável, roda e
 - Não monte `ssh` na mão: perde-se a verificação do host e a chave.
 - Comando que precisa de root no alvo exige uma linha `NOPASSWD` no sudoers da VM, com argumentos fixos. Use `sudo -n`, para falhar na hora em vez de esperar senha. Ver [preparar-alvo.md](preparar-alvo.md).
 - Valor vindo de fora **nunca** entra direto numa string de comando remoto sem validação. Em bash, prefira `remoto "$HOST" cmd "$arg1" "$arg2"` (vários argumentos, cada um protegido).
+
+## Outras linguagens e programas compilados
+
+- **No servidor do Airflow**, a rotina aceita só **scripts de texto com `#!`** (até 1 MB). Vale qualquer linguagem interpretada cujo interpretador esteja na imagem (bash, Python; outra, acrescente em `ferramentas/sistema.txt`). **Binários compilados (Rust, Go, C...) não são aceitos pela tela.** É de propósito: o script fica legível no Git dos dados (dá para revisar o que mudou) e roda com acesso à chave SSH e aos segredos.
+- **Programa compilado que roda numa VM-alvo**: instale-o **na VM**, pelo processo de quem a administra, compilado para ela. A rotina usa um script curto que só chama o programa pelo SSH:
+
+  ```bash
+  #!/bin/bash
+  set -euo pipefail
+  source "${ROTINAS_LIB:?}/ssh.sh"
+  remoto "${1:?Uso: script.sh HOST}" /opt/ferramenta/meu_programa --modo diario
+  ```
+
+  O código de saída do programa decide verde/vermelho e a saída dele vai para o log. Se ele precisar de root, libere o caminho exato no sudoers. Se precisar de senha, passe-a de um segredo por variável de ambiente, nunca como argumento (ficaria visível no `ps` da VM).
 
 ## Esqueletos
 
@@ -86,12 +100,26 @@ remoto "$HOST" uptime
 |---|---|
 | Rotina fica verde, mas o trabalho não foi feito | Faltou `set -e` (bash) ou o script engoliu o erro e saiu com 0 |
 | Rotina trava até estourar o tempo | O script esperou entrada (senha, confirmação) |
-| `command not found` | A ferramenta não existe na imagem do Airflow; peça ao administrador para incluí-la no `Dockerfile` |
+| `command not found` / `ModuleNotFoundError` | A ferramenta não existe na imagem. Veja [Ferramentas na imagem](#ferramentas-na-imagem) |
 | Arquivo gerado desapareceu | Foi gravado fora de `BACKUPS_DIR` |
 | `bad interpreter` / `^M` | Quebras de linha do Windows (CRLF) |
 | `host key` / `not found in known_hosts` | A VM não foi cadastrada com `scripts_base/cadastrar_alvo.sh` |
 | `Permission denied` na VM | O usuário `airflow-svc` não lê o caminho, ou falta a linha do sudoers |
 | Valor sumiu do log e apareceu `***` | É um segredo curto sendo mascarado; use segredos longos |
+
+## Ferramentas na imagem
+
+O script só enxerga os comandos e bibliotecas da imagem do Airflow. Para acrescentar um:
+
+1. **Comando do sistema** (`ping`, `snmpwalk`, `mysql`...): acrescente o **pacote Debian** em `ferramentas/sistema.txt`. O nome do pacote nem sempre é o do comando (`dig` vem de `dnsutils`); procure em <https://packages.debian.org/> (bookworm).
+   **Biblioteca Python** (`import pandas`): acrescente em `ferramentas/python.txt`.
+2. Uma linha por item, com um comentário dizendo qual rotina precisa dele. Faça commit.
+3. Na VM do Airflow: `git pull && docker compose up -d --build`. Leva alguns minutos; as rotinas voltam a rodar quando os containers sobem.
+4. Confira: `docker compose exec airflow-scheduler which <comando>` ou `docker compose exec airflow-scheduler python -c "import <modulo>"`.
+
+Se uma linha for inválida ou o pacote não existir, o build para mostrando o motivo, e o ambiente antigo continua rodando. Em VM sem internet, a imagem é construída fora e levada para a VM ([instalacao.md](instalacao.md#9-procedimento-offline)).
+
+Antes de pedir uma ferramenta nova, confira se o comando não pode rodar **na VM-alvo** pelo SSH: aí ela precisa existir só lá, não na imagem.
 
 ## Exemplos prontos
 

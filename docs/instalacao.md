@@ -6,7 +6,7 @@ Este guia leva uma VM Ubuntu limpa até o painel funcionando com as rotinas de e
 
 | Item | Valor |
 |---|---|
-| Sistema | Ubuntu Server 24.04 LTS (suposição; outras distribuições com Docker funcionam) |
+| Sistema | Debian 12 (bookworm), usado nas VMs do 4º CTA, ou Ubuntu Server 24.04 LTS. Outras distribuições com Docker funcionam |
 | Recursos (ponto de partida) | 4 vCPU, 8 GB de RAM, 50 GB de disco |
 | Software | Docker Engine e plugin Docker Compose, `git`, `openssh-client` (o `ssh-keygen` e o `ssh-keyscan` são usados fora do container) |
 | Rede | Acesso da VM às VMs/equipamentos-alvo (porta 22) e a um servidor SMTP; acesso à internet na instalação (ou use o [procedimento offline](#9-procedimento-offline)) |
@@ -16,7 +16,25 @@ Os recursos acima são um ponto de partida; ajuste depois de medir o uso real.
 
 ## 2. Instalar o Docker
 
-Pelo repositório oficial da Docker (Ubuntu 24.04):
+**O Debian mínimo pode vir sem `sudo`.** Teste com `sudo -V`. Se não existir, como root (`su -`): `apt-get install -y sudo && usermod -aG sudo SEU_USUARIO`, e entre de novo na sessão.
+
+Pelo repositório oficial da Docker, **Debian 12**:
+
+```bash
+sudo apt-get update
+sudo apt-get install -y ca-certificates curl git openssh-client
+sudo install -m 0755 -d /etc/apt/keyrings
+sudo curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc
+sudo chmod a+r /etc/apt/keyrings/docker.asc
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian $(. /etc/os-release && echo $VERSION_CODENAME) stable" \
+  | sudo tee /etc/apt/sources.list.d/docker.list
+sudo apt-get update
+sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+sudo usermod -aG docker "$USER"     # sair e entrar de novo na sessão
+docker compose version
+```
+
+**Ubuntu 24.04** (o repositório da Docker é outro: `linux/ubuntu`):
 
 ```bash
 sudo apt-get update
@@ -127,7 +145,40 @@ SMTP_REMETENTE=airflow@exemplo.mil.br
 AVISO_DESTINATARIOS=infra@exemplo.mil.br,outro@exemplo.mil.br
 ```
 
-Aplique com `docker compose up -d` (recria os containers com o novo `.env`). Cada rotina pode ter e-mails extras próprios (campo `emails_aviso`). Teste ativando a rotina `exemplo_falha_proposital` e disparando-a (veja [instrucao.md](instrucao.md)). Na homologação com o profile `teste`, o Mailpit (`http://IP-DA-VM:8025`) captura os e-mails sem enviá-los de verdade (`SMTP_HOST=mailpit`, porta 1025: valores do `.env.example`).
+Cuidados que costumam derrubar o envio:
+
+- **`SMTP_TLS` combina com a porta:** `true` (STARTTLS) para 587, `false` para 25. A porta **465** (SSL direto) **não é suportada**.
+- **`SMTP_REMETENTE` igual ao `SMTP_USUARIO`** (ou um endereço que a conta pode usar). Remetente diferente costuma ser recusado (`Sender address rejected`).
+- **`AVISO_DESTINATARIOS`** com caixas reais e monitoradas; o padrão `admin@localhost` não entrega a ninguém.
+- **Rede:** a VM do Airflow precisa alcançar o servidor SMTP. Serviços externos (Gmail etc.) costumam ser bloqueados em rede interna e exigem "senha de app"; prefira o relay SMTP interno da organização.
+
+Aplique com `docker compose up -d` (recria os containers com o novo `.env`).
+
+**Testar o SMTP direto** (manda um e-mail de teste para `AVISO_DESTINATARIOS` com as mesmas variáveis do Airflow; não imprime a senha). O `-T` é obrigatório por causa do `<<'PY'`:
+
+```bash
+docker compose exec -T airflow-scheduler python - <<'PY'
+import os, smtplib
+from email.message import EmailMessage
+e = os.environ
+para = [x.strip() for x in e["AVISO_DESTINATARIOS"].split(",") if x.strip()]
+print(f"{e['SMTP_HOST']}:{e['SMTP_PORTA']} tls={e['SMTP_TLS']} de={e['SMTP_REMETENTE']} para={para}")
+m = EmailMessage(); m["Subject"] = "Teste SMTP Rotinas"; m["From"] = e["SMTP_REMETENTE"]; m["To"] = ", ".join(para)
+m.set_content("Se você recebeu isto, o SMTP está funcionando.")
+with smtplib.SMTP(e["SMTP_HOST"], int(e["SMTP_PORTA"]), timeout=30) as s:
+    if e["SMTP_TLS"].lower() in ("1", "true", "sim", "yes"): s.starttls()
+    if e.get("SMTP_USUARIO"): s.login(e["SMTP_USUARIO"], e.get("SMTP_SENHA", ""))
+    s.send_message(m)
+print("ENVIADO")
+PY
+```
+
+| Erro | Causa |
+|---|---|
+| `Network is unreachable`, `timed out`, `Connection refused` | Rede/firewall até o servidor SMTP, ou host/porta errados |
+| `SMTPAuthenticationError` | Usuário ou senha (ou o servidor exige senha de app) |
+| `STARTTLS extension not supported` | `SMTP_TLS=true` numa porta sem STARTTLS |
+| `Sender address rejected` | Remetente não permitido para a conta | Cada rotina pode ter e-mails extras próprios (campo `emails_aviso`). Teste ativando a rotina `exemplo_falha_proposital` e disparando-a (veja [instrucao.md](instrucao.md)). Na homologação com o profile `teste`, o Mailpit (`http://IP-DA-VM:8025`) captura os e-mails sem enviá-los de verdade (`SMTP_HOST=mailpit`, porta 1025: valores do `.env.example`).
 
 ### Firewall
 

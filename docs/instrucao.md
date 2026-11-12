@@ -98,4 +98,6 @@ Casos para a turma diagnosticar (a partir de mensagens): `Host key verification 
 
 ## Material para entregar aos alunos
 
-README, [criar-rotinas.md](criar-rotinas.md) (principalmente "Guia para escrever scripts") e o script `ola_ssh.sh` deste roteiro.
+README, [padrao-de-scripts.md](padrao-de-scripts.md) (contrato e checklist em uma página), [criar-rotinas.md](criar-rotinas.md) (principalmente "Guia para escrever scripts") e o script `ola_ssh.sh` deste roteiro.
+
+Pontos que costumam confundir na primeira vez: o log do script está na aba **Logs** da tarefa `executar` (não em "Audit Logs"); uma rotina nova e ativa roda sozinha uma vez; *Usar um script já existente* só lista o que está na pasta `scripts/` do diretório de dados.

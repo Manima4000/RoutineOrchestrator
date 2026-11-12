@@ -1,0 +1,19 @@
+# Pacotes do sistema (apt, Debian 12) instalados na imagem do Airflow para os scripts das rotinas.
+#
+# Como usar:
+#   1. Acrescente o nome do pacote em uma linha, com um comentário dizendo qual rotina precisa dele.
+#   2. Faça commit, e na VM do Airflow: git pull && docker compose up -d --build
+#   3. Confira: docker compose exec airflow-scheduler which <comando>
+#
+# Regras: um pacote por linha; "#" inicia comentário; versão opcional com "pacote=versão".
+# O nome é o do PACOTE Debian, não do comando (ex.: o comando "dig" vem do pacote "dnsutils").
+# Para descobrir o pacote de um comando: https://packages.debian.org/ (busca pelo conteúdo, bookworm).
+# Pacotes essenciais do ambiente (ssh, rsync, git...) ficam no Dockerfile, não aqui.
+
+iputils-ping      # ping
+dnsutils          # dig, nslookup
+netcat-openbsd    # nc (testar portas)
+traceroute        # traceroute
+snmp              # snmpget, snmpwalk (equipamentos de rede)
+nmap              # nmap (varredura de portas)
+openssl           # vm_backup_diretorio_cifrado.py

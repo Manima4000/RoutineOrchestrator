@@ -61,6 +61,8 @@ Abra `http://IP-DA-VM:8080` e entre com o usuário e a senha mostrados ao final 
 | `backup_etc_servidor_teste` | Via SSH, compacta o `/etc` do servidor de teste e guarda os 7 últimos |
 | `exemplo_falha_proposital` | Sempre falha, para demonstrar o alerta (instalada inativa) |
 
+Há outros scripts de exemplo (SSH em Python, saúde de VMs, relatório remoto, `sudo` restrito, backup cifrado com segredo) em `scripts_base/exemplos/scripts/`, descritos em [docs/padrao-de-scripts.md](docs/padrao-de-scripts.md#exemplos-prontos). Ferramentas extras da imagem: `ferramentas/sistema.txt` e `ferramentas/python.txt`.
+
 ## Estrutura do repositório
 
 ```

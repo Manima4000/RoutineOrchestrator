@@ -9,6 +9,8 @@ Pré-requisito: a chave do ambiente já foi gerada (`scripts_base/gerar_chave_am
 
 ## VM Linux
 
+No Debian mínimo, confira antes que o alvo tem `sudo` e o servidor SSH: `sudo apt-get install -y sudo openssh-server` (sem `sudo`, faça como root com `su -`).
+
 No alvo, como administrador (substitua o conteúdo de `CHAVE_PUBLICA` pelo texto de `ssh/id_ambiente.pub`):
 
 ```bash
@@ -36,6 +38,17 @@ sudo visudo -cf /etc/sudoers.d/airflow-svc    # valida a sintaxe
 ```
 
 Evite liberar `tar` sem argumentos fixos (`NOPASSWD: /usr/bin/tar`): o `tar` consegue executar comandos como root (`--checkpoint-action`), o que na prática entrega root ao usuário de serviço. Fixando os argumentos, só aquele comando é possível. Nunca use `ALL`, `NOPASSWD: ALL` nem acesso a shells.
+
+Outro exemplo, para reiniciar um serviço (usado por `vm_reinicia_servico.py`): uma linha por serviço, com o nome exato.
+
+```bash
+echo 'airflow-svc ALL=(root) NOPASSWD: /usr/bin/systemctl restart cron' | sudo tee -a /etc/sudoers.d/airflow-svc
+sudo visudo -cf /etc/sudoers.d/airflow-svc
+sudo -u airflow-svc sudo -n /usr/bin/systemctl restart cron && echo OK   # liberado
+sudo -u airflow-svc sudo -n /usr/bin/systemctl restart ssh              # deve ser negado
+```
+
+No script, chame sempre `sudo -n` (falha na hora em vez de esperar senha, que travaria a rotina até o tempo máximo).
 
 (O servidor `ssh-teste` do profile `teste` usa uma regra mais aberta, `NOPASSWD: /bin/tar, /usr/bin/tar`, apenas por ser descartável. Não copie para produção.)
 
@@ -101,7 +114,17 @@ remoto "$1" hostname
 echo "OK"
 ```
 
-Erros comuns no log: `Host key verification failed` (falta cadastrar o alvo), `Permission denied (publickey)` (a chave pública não está no `authorized_keys` do usuário certo) e `Connection timed out` (rede/firewall).
+Erros comuns no log (scripts em bash / em Python):
+
+| Mensagem | Causa |
+|---|---|
+| `Host key verification failed` / `not found in known_hosts` | Falta cadastrar o alvo com `cadastrar_alvo.sh` |
+| `Permission denied (publickey)` / `Authentication failed` | A chave pública não está no `authorized_keys` do `airflow-svc`, ou as permissões de `~/.ssh` (700) e `authorized_keys` (600) estão erradas |
+| `Connection timed out` / `timed out` | Rede ou firewall entre a VM do Airflow e o alvo (porta 22) |
+| `Connection refused` | `sshd` parado ou não instalado no alvo |
+| `sudo: a password is required` | Falta a linha `NOPASSWD` exata no sudoers do alvo |
+
+**Não dá para testar com `ssh` direto de dentro do container**: a chave privada não existe em arquivo (fica na Connection `ssh_padrao` e só vira arquivo durante a execução de uma rotina), e o `ssh` comum não usa o `known_hosts` do ambiente. Use sempre a rotina de teste.
 
 ## Limitações conhecidas
 

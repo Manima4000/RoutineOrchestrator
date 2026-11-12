@@ -1,0 +1,14 @@
+# Bibliotecas Python (pip) instaladas na imagem do Airflow para os scripts das rotinas.
+#
+# Como usar:
+#   1. Acrescente o nome da biblioteca em uma linha, com um comentário dizendo qual rotina precisa dela.
+#   2. Faça commit, e na VM do Airflow: git pull && docker compose up -d --build
+#   3. Confira: docker compose exec airflow-scheduler python -c "import <modulo>"
+#
+# Regras: uma biblioteca por linha; "#" inicia comentário; versão opcional ("nome==1.2.3").
+# Só nomes de pacote e versões: opções do pip (linhas começando com "-") são recusadas no build.
+# As versões das bibliotecas que o próprio Airflow usa são fixadas pelas "constraints" do Airflow;
+# se a versão que você pedir conflitar com elas, o build falha avisando (não quebra o Airflow).
+# Bibliotecas do próprio ambiente (paramiko, netmiko...) ficam no requirements.txt, não aqui.
+
+requests          # chamadas HTTP/APIs nos scripts

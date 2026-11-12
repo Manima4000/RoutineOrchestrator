@@ -38,7 +38,7 @@ O formulário tem cinco blocos:
    - Diário: *Hora* e *Minuto*. Semanal: mais *Dia da semana*. Mensal: mais *Dia do mês* (1 a 28, para existir em todos os meses).
    - Avançado: *Expressão cron* de 5 campos (`minuto hora dia mês dia-da-semana`, ex.: `*/15 * * * *`) ou `@hourly`, `@daily`, `@weekly`, `@monthly`.
    - O fuso é America/Manaus. A área **Próximas execuções** mostra as três próximas datas enquanto você preenche; erro de horário aparece ali e ao lado do campo.
-3. **Script**: *Enviar arquivo*, *Usar um script já existente* (lista dos scripts que já estão na pasta de scripts) e, ao editar, *Manter o atual*. Em *Argumentos*, um argumento por linha. **Nunca coloque senhas nos argumentos.**
+3. **Script**: *Enviar arquivo* (do computador onde está o navegador), *Usar um script já existente* (lista dos scripts que já estão na pasta `scripts/` do diretório de dados, na VM do Airflow; para um script aparecer ali, copie-o para `DADOS_HOST_DIR/scripts/`, por exemplo `cp meu.py /opt/airflow-rotinas/dados/scripts/exemplos/`) e, ao editar, *Manter o atual*. Em *Argumentos*, um argumento por linha. **Nunca coloque senhas nos argumentos.**
 4. **Segredos**: botão **Adicionar segredo**; cada linha é `NOME_DA_VARIAVEL ← Variable | Connection`. Para Variable, informe o nome da Variable do Airflow; para Connection, o nome da Connection e o campo (`login`, `password`, `host`, `port`, `schema` ou `extra`). O script recebe o valor como variável de ambiente `NOME_DA_VARIAVEL`. A tela nunca mostra os valores. Cadastre antes a Variable/Connection em **Admin > Variables** ou **Admin > Connections**.
 5. **Execução e avisos**: *Novas tentativas* (padrão 1; 0 = não repetir), *Intervalo entre tentativas (min)* (padrão 5), *Tempo máximo (min)* (padrão 60), a caixa *Avisar por e-mail quando falhar* e *E-mails extras para aviso* (separados por vírgula ou um por linha, além dos destinatários padrão).
 
@@ -119,7 +119,7 @@ Para editar à mão: altere o YAML (e o script em `scripts/`) no diretório de d
 6. Ao final (com sucesso ou não) o diretório temporário e a chave são apagados.
 7. Esgotadas as tentativas, vai um e-mail `[Rotinas] FALHA: <nome>` com horário, erro, as últimas 30 linhas do log e o link para o log completo (para `emails_aviso`, ou os destinatários padrão).
 
-O script roda dentro do container, como usuário `airflow`, com as ferramentas da imagem: `bash`, `python3`, `ssh`/`scp`, `rsync`, `curl`, `psql`/`pg_dump`, `tar`, `gzip`, `git`, e em Python `paramiko` e `netmiko`. Faltou uma ferramenta? Acrescente no `Dockerfile` e reconstrua (`docker compose up -d --build`).
+O script roda dentro do container, como usuário `airflow`, com as ferramentas da imagem: `bash`, `python3`, `ssh`/`scp`, `rsync`, `curl`, `psql`/`pg_dump`, `tar`, `gzip`, `git`, e em Python `paramiko` e `netmiko`, mais o que estiver listado em `ferramentas/sistema.txt` (pacotes do sistema: `ping`, `dig`, `nc`, `snmpwalk`, `nmap`...) e `ferramentas/python.txt` (bibliotecas Python). Faltou uma ferramenta? Acrescente o pacote no arquivo correspondente, faça commit e reconstrua na VM do Airflow (`git pull && docker compose up -d --build`). As instruções estão no início de cada arquivo.
 
 ## Guia para escrever scripts
 
@@ -194,10 +194,12 @@ with conectar_equipamento("10.0.0.1", "cisco_ios") as conexao:
 
 ### Os exemplos
 
-Em `scripts_base/exemplos/scripts/` (instalados em `scripts/exemplos/`): `backup_banco_airflow.sh` (segredo `PGPASSWORD` por Connection, retenção, arquivo parcial + renomear), `backup_etc_servidor_teste.sh` (SSH com `remoto`/`copiar_de`, `trap` de limpeza), `verifica_servicos_http.py` (lista de URLs como argumentos, código 1 se alguma falhar) e `exemplo_falha_proposital.sh`. Use-os como modelo.
+Em `scripts_base/exemplos/scripts/`. Os quatro das rotinas de exemplo são instalados em `scripts/exemplos/` pelo `instalar_exemplos.sh`: `backup_banco_airflow.sh` (segredo `PGPASSWORD` por Connection, retenção, arquivo parcial + renomear), `backup_etc_servidor_teste.sh` (SSH com `remoto`/`copiar_de`, `trap` de limpeza), `verifica_servicos_http.py` (lista de URLs como argumentos, código 1 se alguma falhar) e `exemplo_falha_proposital.sh`.
+
+Os demais (SSH em Python, saúde de VMs, relatório remoto, `sudo` restrito, backup cifrado com segredo) estão descritos em [padrao-de-scripts.md](padrao-de-scripts.md#exemplos-prontos); para usá-los, copie para `scripts/exemplos/` do diretório de dados ou envie pela tela. Use-os como modelo.
 
 ## Conferir se deu certo
 
 1. Na lista, clique no nome para abrir o DAG e use **Trigger** para disparar manualmente.
-2. Na execução, abra a tarefa `executar` > **Logs**.
+2. Na execução, abra a tarefa `executar` > **Logs** (não a aba "Audit Logs", que não mostra a saída do script).
 3. Verde = código 0. Vermelho = leia as últimas linhas do log; as mensagens do seu script estão lá.

@@ -5,7 +5,7 @@ Guia do dia a dia para quem administra o ambiente. Comandos `docker compose` sã
 ## Acompanhar o painel
 
 - **Dags**: lista de todas as rotinas (tag `rotina`) e da vigia (`vigia_rotinas`, tag `sistema`). Verde = última execução com sucesso; vermelho = falhou.
-- Clique no nome do DAG para ver o histórico de execuções; clique numa execução > tarefa `executar` > **Logs** para o log completo (também em `logs/` no host).
+- Clique no nome do DAG para ver o histórico de execuções; clique numa execução > tarefa `executar` > **Logs** para o log completo (também em `logs/` no host). **Não confunda com a aba "Audit Logs"**, que só registra ações de pessoas no painel (pausar, disparar) e costuma mostrar "No Event Found".
 - **Tela Rotinas** (Admin): visão por rotina com horário, última execução com sucesso, próxima execução e divergências em relação ao YAML.
 - DAGs chamados `rotina_invalida__<arquivo>` indicam um YAML com erro: abra a tarefa `erro` para ler o motivo, corrija o arquivo pela tela ou à mão e o DAG some no ciclo seguinte (você pode excluí-lo do painel depois, se quiser limpar o histórico).
 - Estado do ambiente: `docker compose ps`, `docker compose logs -f airflow-scheduler` (ou `airflow-dag-processor`, `airflow-apiserver`).
@@ -30,7 +30,7 @@ A vigia (`vigia_rotinas`) roda a cada 15 minutos e manda um e-mail `[Rotinas] Vi
 | `Rotina X está ativa/inativa no YAML, mas pausada/ativa no Airflow.` | Alguém usou o botão nativo de pausa, ou editou o YAML à mão | Usar **Ativar/Desativar** na tela Rotinas para realinhar |
 | `Rotina X atrasada: esperada às HH:MM de dd/mm/aaaa, última execução com sucesso: ...` | A rotina passou do horário previsto (mais tolerância) sem execução bem-sucedida | Ver o histórico do DAG: scheduler parado? execuções falhando? rotina presa? Corrigir e, se preciso, *Trigger*. A tolerância é `timeout + tentativas × intervalo + 5 min` |
 
-Além disso, uma falha de execução gera o e-mail `[Rotinas] FALHA: <nome>` (após esgotar as tentativas). Se o e-mail não chega, confira `SMTP_*` e `AVISO_DESTINATARIOS` no `.env` (e `docker compose logs airflow-scheduler`).
+Além disso, uma falha de execução gera o e-mail `[Rotinas] FALHA: <nome>` (após esgotar as tentativas). Se o e-mail não chega: confira `SMTP_*` e `AVISO_DESTINATARIOS` no `.env`, rode o [teste direto do SMTP](instalacao.md#smtp) e procure `Falha ao enviar o aviso` nos logs (`docker compose logs --tail 200 airflow-scheduler airflow-dag-processor | grep -i -E "aviso|smtp"`). Lembre que o e-mail só sai **depois da última tentativa**.
 
 **A vigia não detecta Airflow ou VM fora do ar** (ela mesma depende do scheduler). Veja o monitoramento externo em [Recomendações para produção](#recomendações-para-produção).
 
@@ -106,7 +106,7 @@ Para voltar atrás, restaure o banco do backup e a versão anterior do `Dockerfi
 ## Rotinas de manutenção úteis
 
 - Espaço em disco: `logs/` e `backups/` crescem. Acompanhe com `df -h` e mantenha retenção nos scripts de backup (como nos exemplos).
-- Reconstruir após mudar o `Dockerfile` ou o `requirements.txt`: `docker compose up -d --build`.
+- Reconstruir após mudar o `Dockerfile`, o `requirements.txt` ou as listas de `ferramentas/` (`sistema.txt`, `python.txt`): `docker compose up -d --build`.
 - Reiniciar um serviço: `docker compose restart airflow-scheduler`.
 - Mudou o `.env`: `docker compose up -d` (recria o que for necessário).
 
