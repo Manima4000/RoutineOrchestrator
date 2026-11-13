@@ -12,3 +12,4 @@
 # Bibliotecas do próprio ambiente (paramiko, netmiko...) ficam no requirements.txt, não aqui.
 
 requests          # chamadas HTTP/APIs nos scripts
+pyvmomi           # SDK oficial da VMware (vCenter/ESXi) para o que a API REST não cobre (customização, OVF...)

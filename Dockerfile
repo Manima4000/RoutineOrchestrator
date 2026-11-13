@@ -28,6 +28,24 @@ RUN export http_proxy="${BUILD_HTTP_PROXY}" HTTP_PROXY="${BUILD_HTTP_PROXY}" htt
          && apt-get clean && rm -rf /var/lib/apt/lists/*; fi \
     && rm -f /tmp/pacotes.txt /tmp/ferramentas-sistema.txt
 
+# govc: CLI oficial da VMware para o vCenter (VMs, energia, clone de template, snapshots...). Não existe
+# no apt; baixa o binário da versão fixada e confere o SHA-256 (checksums.txt da release). Para atualizar,
+# troque a versão e os dois hashes. Uso nos scripts: GOVC_URL, GOVC_USERNAME, GOVC_PASSWORD vindos de segredos.
+ARG GOVC_VERSAO=0.56.2
+ARG GOVC_SHA256_AMD64=12889f30e42e868487041f6628e9789606c80e13a194fb37c099abffc92d5a59
+ARG GOVC_SHA256_ARM64=9c34a018300fbb02b943e48f277b9cee8f90ab7a6e6936427ef9f48c1e93af50
+RUN export http_proxy="${BUILD_HTTP_PROXY}" HTTP_PROXY="${BUILD_HTTP_PROXY}" https_proxy="${BUILD_HTTPS_PROXY}" HTTPS_PROXY="${BUILD_HTTPS_PROXY}" \
+    && case "$(dpkg --print-architecture)" in \
+         amd64) arq=x86_64; sha="${GOVC_SHA256_AMD64}" ;; \
+         arm64) arq=arm64; sha="${GOVC_SHA256_ARM64}" ;; \
+         *) echo "ERRO: arquitetura sem govc configurado" >&2; exit 1 ;; esac \
+    && curl -fsSL -o /tmp/govc.tar.gz "https://github.com/vmware/govmomi/releases/download/v${GOVC_VERSAO}/govc_Linux_${arq}.tar.gz" \
+    && echo "${sha}  /tmp/govc.tar.gz" | sha256sum -c - \
+    && tar -xzf /tmp/govc.tar.gz -C /usr/local/bin govc \
+    && chmod 755 /usr/local/bin/govc \
+    && rm -f /tmp/govc.tar.gz \
+    && govc version
+
 USER airflow
 COPY requirements.txt /tmp/requirements.txt
 RUN export http_proxy="${BUILD_HTTP_PROXY}" HTTP_PROXY="${BUILD_HTTP_PROXY}" https_proxy="${BUILD_HTTPS_PROXY}" HTTPS_PROXY="${BUILD_HTTPS_PROXY}" \

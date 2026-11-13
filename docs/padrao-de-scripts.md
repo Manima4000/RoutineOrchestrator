@@ -134,5 +134,6 @@ Em `scripts_base/exemplos/scripts/`:
 | `vm_reinicia_servico.py` | Comando com `sudo` restrito e verificação do resultado |
 | `vm_backup_diretorio_cifrado.py` | Argumentos, **segredo** (`BACKUP_SENHA`), cifragem e retenção |
 | `backup_banco_airflow.sh`, `backup_etc_servidor_teste.sh` | Modelos em bash |
+| `vcenter_energia.py` | Liga/desliga VM pela API do vCenter, com segredos e travas. Ver [vcenter.md](vcenter.md) |
 
 Só as quatro rotinas de exemplo originais são instaladas por `scripts_base/instalar_exemplos.sh`. Para usar os demais, copie o arquivo para `scripts/exemplos/` do diretório de dados (ou envie pela tela).

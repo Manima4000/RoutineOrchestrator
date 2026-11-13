@@ -17,3 +17,4 @@ traceroute        # traceroute
 snmp              # snmpget, snmpwalk (equipamentos de rede)
 nmap              # nmap (varredura de portas)
 openssl           # vm_backup_diretorio_cifrado.py
+jq                # ler JSON da API REST do vCenter em scripts bash (govc fica no Dockerfile)
