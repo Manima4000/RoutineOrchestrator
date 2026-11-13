@@ -291,6 +291,27 @@ def test_inseguro_explicito_aceita_e_avisa(vc):
     assert "AVISO" in r.stderr
 
 
+def test_ca_pelo_conteudo_em_variavel(vc):
+    vc.add("vm-1", "apache01")
+    pem = Path(vc.ca).read_text()
+    r = rodar(vc, "status", "apache01", VCENTER_CA=None, VCENTER_CA_PEM=pem)
+    assert r.returncode == 0, r.saida
+    assert "AVISO" not in r.stderr
+
+
+def test_ca_pem_invalido_falha_com_uso(vc):
+    r = rodar(vc, "status", "apache01", VCENTER_CA=None, VCENTER_CA_PEM="lixo")
+    assert r.returncode == 2 and "VCENTER_CA_PEM" in r.stderr
+
+
+def test_log_sai_na_ordem_em_que_foi_escrito(vc):
+    # stdout e stderr no mesmo pipe (como no Airflow): "Conectando" tem de vir antes do ERRO
+    env = {"PATH": os.environ["PATH"], "VCENTER_HOST": vc.host, "VCENTER_USUARIO": USUARIO, "VCENTER_SENHA": SENHA}
+    r = subprocess.run([sys.executable, str(SCRIPT), "status", "x"], env=env, stdout=subprocess.PIPE,
+                       stderr=subprocess.STDOUT, text=True, timeout=60, stdin=subprocess.DEVNULL)
+    assert r.stdout.index("Conectando") < r.stdout.index("ERRO")
+
+
 def test_falta_variavel_de_ambiente(vc):
     r = rodar(vc, "status", "apache01", VCENTER_SENHA=None)
     assert r.returncode == 2 and "VCENTER_SENHA" in r.stderr

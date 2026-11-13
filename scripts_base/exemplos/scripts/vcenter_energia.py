@@ -14,7 +14,8 @@ Variáveis de ambiente (na rotina do Airflow, cadastre como "segredos"):
   VCENTER_HOST            IP ou nome do vCenter (aceita HOST:PORTA)
   VCENTER_USUARIO         usuário do SSO (ex.: svc-automacao@vsphere.local)
   VCENTER_SENHA           senha
-  VCENTER_CA              (opcional) arquivo .pem da CA que assinou o certificado do vCenter
+  VCENTER_CA_PEM          (opcional) CONTEÚDO do .pem da CA do vCenter (cadastre como Variable no Airflow)
+  VCENTER_CA              (opcional) caminho de um arquivo .pem da CA, alternativa ao VCENTER_CA_PEM
   VCENTER_INSEGURO=1      (opcional) não valida o certificado. Só para teste; imprime aviso
   VCENTER_VMS_PERMITIDAS  (opcional) nomes separados por vírgula; outras VMs são recusadas
 
@@ -122,6 +123,12 @@ def _contexto_ssl() -> ssl.SSLContext:
         ctx.check_hostname = False
         ctx.verify_mode = ssl.CERT_NONE
         return ctx
+    pem = os.environ.get("VCENTER_CA_PEM", "").strip()
+    if pem:
+        try:
+            return ssl.create_default_context(cadata=pem)
+        except (ssl.SSLError, ValueError):
+            raise Uso("VCENTER_CA_PEM não contém um certificado PEM válido (-----BEGIN CERTIFICATE-----...)") from None
     ca = os.environ.get("VCENTER_CA")
     if ca and not os.path.isfile(ca):
         raise Uso(f"VCENTER_CA aponta para um arquivo que não existe: {ca}")
@@ -217,6 +224,7 @@ def desligar(vc: VCenter, nome: str, vm_id: str, forcar: bool, espera_s: int) ->
 
 
 def main(argv: list[str]) -> int:
+    sys.stdout.reconfigure(line_buffering=True)  # no Airflow a saída é um pipe: sem isso o log sai fora de ordem
     vc = None
     try:
         a = _argumentos(argv)

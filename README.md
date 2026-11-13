@@ -38,6 +38,7 @@ Fluxo: `rotinas/<nome>.yaml` + `scripts/...` → `dags/gerador_rotinas.py` cria 
 | [docs/preparar-alvo.md](docs/preparar-alvo.md) | Preparar uma VM Linux ou equipamento de rede para receber o SSH do ambiente |
 | [docs/criar-rotinas.md](docs/criar-rotinas.md) | Criar rotinas pela tela e pelo YAML; como escrever os scripts |
 | [docs/padrao-de-scripts.md](docs/padrao-de-scripts.md) | Contrato e checklist para quem escreve os scripts das rotinas (uma página) |
+| [docs/vcenter.md](docs/vcenter.md) | Acesso do Airflow ao vCenter: usuário, permissões e rede no vCenter; Connection, CA e rotina no Airflow |
 | [docs/operacao.md](docs/operacao.md) | Dia a dia: painel, logs, avisos da vigia, backup/restauração, atualização, produção |
 | [docs/homologacao.md](docs/homologacao.md) | Roteiro de homologação com os resultados obtidos |
 

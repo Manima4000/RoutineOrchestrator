@@ -190,6 +190,8 @@ sudo iptables -I DOCKER-USER -i ens160 -p tcp --dport 8080 ! -s 10.0.0.0/24 -j D
 
 (torne a regra persistente com `iptables-persistent` ou o mecanismo da VM). Em produção, publique o painel por proxy reverso com HTTPS (veja [operacao.md](operacao.md#recomendações-para-produção)). O profile `teste` também publica as portas 8025 e 1025 (Mailpit): não use esse profile em produção.
 
+Saída: rotinas que controlam VMs precisam de **TCP 443 da VM do Airflow até o vCenter** (ver [vcenter.md](vcenter.md#14-rede)).
+
 ## 9. Procedimento offline
 
 Para uma VM sem internet, construa e exporte as imagens numa máquina com internet e leve para a VM:
